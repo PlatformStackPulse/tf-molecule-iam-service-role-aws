@@ -2,6 +2,16 @@
 
 Terraform molecule that composes IAM atoms into a complete service role with managed policy, role-policy attachment, and optional EC2 instance profile.
 
+## Features
+
+- **One-shot service role** — creates an IAM role, a managed permissions policy, and the role↔policy attachment in a single module call.
+- **Configurable trust policy** — supply any `assume_role_policy` (Lambda, EC2, ECS tasks, cross-account, etc.); the input is validated as JSON.
+- **Validated permissions policy** — the `policy` input is validated as JSON before being turned into a managed policy.
+- **Optional EC2 instance profile** — set `create_instance_profile = true` to also emit an instance profile bound to the role.
+- **tf-label naming & tagging** — consistent `namespace`/`environment`/`stage`/`name` IDs and tags via the shared `tf-label` context.
+- **Enable/disable switch** — `enabled = false` short-circuits the whole molecule so it creates nothing.
+- **Tunable role controls** — `role_path`, `policy_path`, `max_session_duration`, and `force_detach_policies` are all exposed with sane defaults.
+
 ## Atoms Composed
 
 | Atom | Purpose |
@@ -143,3 +153,27 @@ No resources.
 | <a name="output_role_id"></a> [role\_id](#output\_role\_id) | ID of the IAM role |
 | <a name="output_role_name"></a> [role\_name](#output\_role\_name) | Name of the IAM role |
 <!-- END_TF_DOCS -->
+
+## Tests
+
+This module ships a `terraform test` suite under `tests/`:
+
+- **Unit tests** (`tests/unit/`) — run against a **mock AWS provider**, so no real
+  AWS calls are made and no credentials are required. They assert plan-known values
+  (the `enabled` flag and the nullability of the optional instance-profile outputs);
+  computed ARNs/IDs are intentionally not asserted because they are unknown under a
+  mock provider.
+- **Integration tests** (`tests/integration/`) — run against a **real AWS provider**
+  and create real (billable) resources. Require valid AWS credentials.
+
+```bash
+# Unit tests (mocked, safe, no credentials)
+terraform init -backend=false
+terraform test -test-directory=tests/unit
+
+# Integration tests (real AWS resources — costs may be incurred)
+terraform test -test-directory=tests/integration
+```
+
+Both suites are also wired into `make test` and the CI pipeline
+(`.github/workflows/ci.yml`).
